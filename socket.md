@@ -10,15 +10,23 @@
 
    * TCP连接到断开过程：
    <div align=center><img src="static/tcp.jpg" alignwidth="700" height="700" alt="tcp连接过程"/></div>
-    - 三次握手：
+
+        * 三次握手：
+         
    &emsp;&emsp;第一次握手：客户端尝试连接服务器，向服务器发送syn包（同步序列编号Synchronize Sequence Numbers），syn=j，客户端进入SYN_SEND状态等待服务器确认;
+
    &emsp;&emsp;第二次握手：服务器接收客户端syn包并确认（ack=j+1），同时向客户端发送一个SYN包（syn=k），即SYN+ACK包，此时服务器进入SYN_RECV状态;
+
    &emsp;&emsp;第三次握手：客户端收到服务器的SYN+ACK包，向服务器发送确认包ACK(ack=k+1），此包发送完毕，客户端和服务器进入ESTABLISHED状态，完成三次握手
 
-    - 四次挥手
+        * 四次挥手
+        
     &emsp;&emsp;第一次挥手：主机1（可以使客户端，也可以是服务器端），设置Sequence Number和Acknowledgment Number，向主机2发送一个FIN报文段；此时，主机1进入FIN_WAIT_1状态；这表示主机1没有数据要发送给主机2了；
+
     &emsp;&emsp;第二次挥手：主机2收到了主机1发送的FIN报文段，向主机1回一个ACK报文段，Acknowledgment Number为Sequence Number加1；主机1进入FIN_WAIT_2状态；主机2告诉主机1，我“同意”你的关闭请求；
+
     &emsp;&emsp;第三次挥手：主机2向主机1发送FIN报文段，请求关闭连接，同时主机2进入LAST_ACK状态；
+    
     &emsp;&emsp;第四次挥手：主机1收到主机2发送的FIN报文段，向主机2发送ACK报文段，然后主机1进入TIME_WAIT状态；主机2收到主机1的ACK报文段以后，就关闭连接；此时，主机1等待2MSL后依然没有收到回复，则证明Server端已正常关闭，那好，主机1也可以关闭连接了
 
    * client状态过程：
@@ -31,7 +39,7 @@
 
    * server.py
 
-    ```python
+   ```python
     import socket
     import StringIO
     
@@ -67,7 +75,7 @@
         buffer.close()
         conn.close()
         print 'Connection from %s:%s closed.' % addr
-    ```
+   ```
 
    * client.py
    
