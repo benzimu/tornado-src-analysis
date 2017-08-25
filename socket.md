@@ -9,7 +9,8 @@
 ## TCP三次握手、四次挥手
 
 * **TCP连接到断开过程：**
-<div align=center><img src="static/tcp.jpg" alignwidth="700" height="700" alt="tcp连接过程"/></div>
+
+    <div align=center><img src="static/tcp.jpg" alignwidth="700" height="700" alt="tcp连接过程"/></div>
 
     * 三次握手：
     
