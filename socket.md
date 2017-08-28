@@ -14,11 +14,13 @@
 
     * 三次握手：
     
-        第一次握手：客户端尝试连接服务器，向服务器发送syn包（同步序列编号Synchronize Sequence Numbers），syn=j，客户端进入SYN_SEND状态等待服务器确认;
+        第一次握手：客户端尝试连接服务器，向服务器发送syn包（同步序列编号Synchronize Sequence Numbers），syn=j，客户端进入SYN_SEND状态等待服务器确认；
 
-        第二次握手：服务器接收客户端syn包并确认（ack=j+1），同时向客户端发送一个SYN包（syn=k），即SYN+ACK包，此时服务器进入SYN_RECV状态;
+        第二次握手：服务器接收客户端syn包并确认（ack=j+1），同时向客户端发送一个SYN包（syn=k），即SYN+ACK包，此时服务器进入SYN_RECV状态；此时，内核将连接（socket）放入SYN QUEUE，即 **未完成队列**，该队列大小由/proc/sys/net/ipv4/tcp_max_syn_backlog设定；
 
-        第三次握手：客户端收到服务器的SYN+ACK包，向服务器发送确认包ACK(ack=k+1），此包发送完毕，客户端和服务器进入ESTABLISHED状态，完成三次握手
+        第三次握手：客户端收到服务器的SYN+ACK包，向服务器发送确认包ACK(ack=k+1），此包发送完毕，客户端和服务器进入ESTABLISHED状态，完成三次握手。此时，内核将连接（socket）移到ACCEPT QUEUE，即 **已完成队列**，队列大小为socket listen()函数传入的backlog参数与/proc/sys/net/core/somaxconn决定，取二者最小值。服务器程序调用accept函数后，该连接（socket）被内核从已完成队列移除，并交由服务器程序控制。
+
+        **注意**: TCP三次握手在应用程序调用accept函数之前由内核完成。调用accept只是获取已经完成的连接。
 
     * 四次挥手
     

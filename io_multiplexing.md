@@ -1,6 +1,6 @@
 ## IO多路复用（Reactor）
 
-   IO多路复用技术是为实现单线程处理多请求连接，减少系统因频繁的创建线程或进程而产生的资源消耗，这里的复用特指同时使用单一线程。linux下的select、poll、epoll为IO多路复用的具体实现。当客户端与服务端的socket连接建立之后，程序将该socket文件描述符注册到epoll，然后返回，最终交由epoll去管理。epoll可以同时监听多个文件描述符，当某个或某些文件描述符就绪，则通过程序进行相应的读写操作，程序读写数据过程是阻塞的。通过上面的描述可知，IO多路复用是异步阻塞IO。
+   IO多路复用技术是为实现单线程处理多请求连接，减少系统因频繁的创建线程或进程而产生的资源消耗，这里的复用特指同时使用单一线程。linux下的select、poll、epoll为IO多路复用的具体实现。当客户端与服务端的socket连接建立之后，程序将该socket文件描述符注册到epoll，然后返回，最终交由epoll去管理。epoll可以同时监听多个文件描述符，当某个或某些文件描述符就绪，则通知程序进行相应的读写操作，否则会一直阻塞知道有文件描述符就绪。我们使用epoll编程时，会设置socket非阻塞模式。所以，IO多路复用是同步非阻塞IO。
 
 * select、poll、epoll比较
 
@@ -28,13 +28,13 @@
 
         优点：
 
-            * 每次注册新事件到epoll句柄都会把所有的fd拷贝进来，而不是在epoll_wait中重复拷贝，这样确保fd只会被拷贝一次
-            * epoll不是像select/poll那样每次都把fd加入等待队列，epoll把每个fd指定一个回调函数，当设备就绪时，唤醒等待队列的等待者就会调用其它的回调函数，这个回调函数会把就绪的fd放入一个就绪链表。epoll_wait就是在这个就绪链表中查看有没有就绪fd。
-            * epoll没有fd数目限制
+        * 每次注册新事件到epoll句柄都会把所有的fd拷贝进来，而不是在epoll_wait中重复拷贝，这样确保fd只会被拷贝一次
+        * epoll不是像select/poll那样每次都把fd加入等待队列，epoll把每个fd指定一个回调函数，当设备就绪时，唤醒等待队列的等待者就会调用其它的回调函数，这个回调函数会把就绪的fd放入一个就绪链表。epoll_wait就是在这个就绪链表中查看有没有就绪fd。
+        * epoll没有fd数目限制
         
         缺点：
 
-            * 如果没有大量的idle-connection或者dead-connection，epoll的效率并不会比select/poll高很多，但是当遇到大量的idle-connection，就会发现epoll的效率大大高于select/poll。
+        * 如果没有大量的idle-connection或者dead-connection，epoll的效率并不会比select/poll高很多，但是当遇到大量的idle-connection，就会发现epoll的效率大大高于select/poll。
             
     * 总结：
         
