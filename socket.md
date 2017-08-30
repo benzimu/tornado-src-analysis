@@ -20,7 +20,7 @@
 
         第三次握手：客户端收到服务器的SYN+ACK包，向服务器发送确认包ACK(ack=k+1），此包发送完毕，客户端和服务器进入ESTABLISHED状态，完成三次握手。此时，内核将连接（socket）移到ACCEPT QUEUE，即 ***已完成队列*** ，队列大小为socket listen()函数传入的backlog参数与/proc/sys/net/core/somaxconn决定，取二者最小值。服务器程序调用accept函数后，该连接（socket）被内核从已完成队列移除，并交由服务器程序控制。
 
-        ***注意***: TCP三次握手在应用程序调用accept函数之前由内核完成。调用accept只是获取已经完成的连接。
+        ***注意*** : TCP三次握手在应用程序调用accept函数之前由内核完成。调用accept只是获取已经完成的连接。
 
     * 四次挥手
     
