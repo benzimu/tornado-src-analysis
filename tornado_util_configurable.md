@@ -92,4 +92,5 @@ tornado.util.Configurable，一个配置类，是工厂模式的实现，通过�
         return base.__impl_class
    ```
 
+tornado.util.Configurable.configured_class()函数是选取实现类的关键，它会判断是否调用过tornado.util.Configurable.configure()函数去配置实现类了，然后以此选择相应的实现类。
 

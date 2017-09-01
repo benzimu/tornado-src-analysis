@@ -40,8 +40,8 @@ ioloop.IOLoop，继承至tornado.util.Configurable（主要用于子类的创建
    ```
 
 从事例中知道，使用ioloop事件循环，首先需要获取IOLoop对象，即调用tornado.ioloop.IOLoop.current()：
-
-    * tornado.ioloop.IOLoop.current()
+    
+* tornado.ioloop.IOLoop.current()
 
    ```python
     @staticmethod
@@ -54,7 +54,7 @@ ioloop.IOLoop，继承至tornado.util.Configurable（主要用于子类的创建
 
 该函数只有四行，它先判断当前线程中是否有IOLoop实例正在运行或者被IOLoop.make_current()标记过，如果结果为真就直接返回当前IOLoop，否则调用IOLoop.instance()去创建IOLoop实例。
 
-    * tornado.ioloop.IOLoop.instance()
+* tornado.ioloop.IOLoop.instance()
 
 ```python
     @staticmethod
@@ -73,7 +73,7 @@ ioloop.IOLoop，继承至tornado.util.Configurable（主要用于子类的创建
 
 两层检查都没通过时，会初始化IOLoop对象（调用IOLoop._instance = IOLoop()）。此时，调用IOLoop父类[tornado.util.Configurable](./tornado_util_configurable.md)的__new__()方法实例化IOLoop对象。因为没有调用tornado.util.Configurable.configure()函数配置实现类，因此Configurable会调用tornado.ioloop.IOLoop.configurable_default()默认配置实现类（不同系统选择不同的IO多路复用机制，即epoll、kqueue、select）。
 
-    * tornado.ioloop.IOLoop.configurable_default()
+* tornado.ioloop.IOLoop.configurable_default()
 
    ```python
     @classmethod
@@ -94,7 +94,7 @@ ioloop.IOLoop，继承至tornado.util.Configurable（主要用于子类的创建
 
 此处我们默认选择EPollIOLoop作为实现类。通过Configurable会生成EPollIOLoop实例，并调用tornado.platform.epoll.EPollIOLoop.initialize()。
 
-    * tornado.platform.epoll.EPollIOLoop
+* tornado.platform.epoll.EPollIOLoop
 
    ```python
     class EPollIOLoop(PollIOLoop):
@@ -103,13 +103,14 @@ ioloop.IOLoop，继承至tornado.util.Configurable（主要用于子类的创建
             super(EPollIOLoop, self).initialize(impl=select.epoll(), **kwargs)
    ```
 
-    * tornado.ioloop.PollIOLoop.initialize()
+* tornado.ioloop.PollIOLoop.initialize()
 
    ```python
-        def initialize(self, impl, time_func=None, **kwargs):
+    def initialize(self, impl, time_func=None, **kwargs):
         super(PollIOLoop, self).initialize(**kwargs)
         self._impl = impl
         if hasattr(self._impl, 'fileno'):
+            # 设置select.epoll描述符在子进程执行exec()族函数时自动关掉
             set_close_exec(self._impl.fileno())
         self.time_func = time_func or time.time
         self._handlers = {}
@@ -123,11 +124,12 @@ ioloop.IOLoop，继承至tornado.util.Configurable（主要用于子类的创建
         self._thread_ident = None
         self._blocking_signal_threshold = None
         self._timeout_counter = itertools.count()
-
-        # Create a pipe that we send bogus data to when we want to wake
-        # the I/O loop when it is idle
+        # 创建一个pipe（管道），当IOLoop处于空闲时，
+        # 会向该pipe中发送虚假数据从而叫醒IOLoop
         self._waker = Waker()
         self.add_handler(self._waker.fileno(),
                          lambda fd, events: self._waker.consume(),
                          self.READ)
    ```
+
+方法中都是进行一些全局数据的初始化工作。其中对epoll文件描述符设置自动关闭以及叫醒IOLoop机制可参考[tornado_platform_posix.md](./tornado_platform_posix.md)
