@@ -7,16 +7,17 @@ tornado.util.Configurable，一个配置类，是工厂模式的实现，通过�
    ```python
     from tornado import httpclient
 
-    httpclient.AsyncHTTPClient.configure("tornado.curl_httpclient.CurlAsyncHTTPClient", max_clients=10000)
+    httpclient.AsyncHTTPClient.configure\
+    ("tornado.curl_httpclient.CurlAsyncHTTPClient", max_clients=10000)
 
     http_client = httpclient.AsyncHTTPClient()
    ```
 
 以tornado.httpclient.AsyncHTTPClient为示例来开始tornado.util.Configurable的剖析。从tornado源码可知，AsyncHTTPClient继承至Configurable，同时tornado.curl_httpclient.CurlAsyncHTTPClient继承至AsyncHTTPClient。
 
-    * 第二行AsyncHTTPClient调用configure去设置它的实现类及关键字参数max_clients=10000。其源码中直接调用了父类（Configurable）的configure()函数。
+* 第二行AsyncHTTPClient调用configure去设置它的实现类及关键字参数max_clients=10000。其源码中直接调用了父类（Configurable）的configure()函数。
 
-        * tornado.httpclient.AsyncHTTPClient.configure()
+    * tornado.httpclient.AsyncHTTPClient.configure()
 
    ```python
     @classmethod
@@ -24,7 +25,7 @@ tornado.util.Configurable，一个配置类，是工厂模式的实现，通过�
         super(AsyncHTTPClient, cls).configure(impl, **kwargs)
    ```
 
-        * tornado.util.Configurable.configure()
+    * tornado.util.Configurable.configure()
 
    ```python
     @classmethod
@@ -37,29 +38,33 @@ tornado.util.Configurable，一个配置类，是工厂模式的实现，通过�
             impl = import_object(impl)
         if impl is not None and not issubclass(impl, cls):
             raise ValueError("Invalid subclass of %s" % cls)
-        # 通过全局变量保存数据，这两个变量是初始化实例（tornado.util.Configurable.__new__()）时非常重要的数据
+        # 通过全局变量保存数据，这两个变量是初始化实例
+        # （tornado.util.Configurable.__new__()）时非常重要的数据
         # 值为：tornado.curl_httpclient.CurlAsyncHTTPClient
         base.__impl_class = impl 
         # 值为：{"max_clients": 10000}
         base.__impl_kwargs = kwargs 
    ```
 
-    * 第三行获取AsyncHTTPClient实例，将会调用tornado.util.Configurable.__new__()函数。
+* 第三行获取AsyncHTTPClient实例，将会调用tornado.util.Configurable.__new__()函数。
 
-        * tornado.util.Configurable.__new__()
+    * tornado.util.Configurable.__new__()
 
    ```python
     def __new__(cls, *args, **kwargs):
-        # cls为AsyncHTTPClient，获取可配置层次结构的基类，通常是其自身（如tornado.httpclient.AsyncHTTPClient.configurable_base()）
+        # cls为AsyncHTTPClient，获取可配置层次结构的基类，
+        # 通常是其自身（如tornado.httpclient.AsyncHTTPClient.configurable_base()）
         base = cls.configurable_base()
         init_kwargs = {}
         # 判断实例cls是否是基类base
         if cls is base:
-            # 获取当前配置的实现类，因为之前配置过实现类，即第二行，所以得到impl为tornado.curl_httpclient.CurlAsyncHTTPClient
+            # 获取当前配置的实现类，因为之前配置过实现类，即第二行，
+            # 所以得到impl为tornado.curl_httpclient.CurlAsyncHTTPClient
             impl = cls.configured_class()
             # 判断configure()函数配置的关键字参数是否为空
             if base.__impl_kwargs:
-                # 更新初始化参数字典，因为之前配置过关键字参数，即第二行，base.__impl_kwargs={"max_clients": 10000}
+                # 更新初始化参数字典，因为之前配置过关键字参数，即第二行，
+                # base.__impl_kwargs={"max_clients": 10000}
                 init_kwargs.update(base.__impl_kwargs)
         else:
             # 实现类即为实例cls
@@ -80,7 +85,8 @@ tornado.util.Configurable，一个配置类，是工厂模式的实现，通过�
     def configured_class(cls):
         # cls为AsyncHTTPClient
         base = cls.configurable_base()
-        # 判断有没有调用tornado.util.Configurable.configure()函数进行配置，如果没有配置过，就调用默认设置configurable_default()
+        # 判断有没有调用tornado.util.Configurable.configure()函数进行配置，
+        # 如果没有配置过，就调用默认设置configurable_default()
         if cls.__impl_class is None:
             base.__impl_class = cls.configurable_default()
         return base.__impl_class
