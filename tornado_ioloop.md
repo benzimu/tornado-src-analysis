@@ -124,12 +124,123 @@ ioloop.IOLoop，继承至tornado.util.Configurable（主要用于子类的创建
         self._thread_ident = None
         self._blocking_signal_threshold = None
         self._timeout_counter = itertools.count()
-        # 创建一个pipe（管道），当IOLoop处于空闲时，
+        # 创建一个pipe（管道），当IOLoop处于空闲，即无读写事件时，
         # 会向该pipe中发送虚假数据从而叫醒IOLoop
         self._waker = Waker()
+        # 将唤醒者（waker）读文件描述符注册到epoll，
+        # 当另一线程调用tornado.ioloop.PollIOLoop.add_callback()时，
+        # 会调用self._waker.wake()唤醒IOLoop，从而让注册的回调函数运行。
+        # 由于唤醒正在轮训中的IOLoop比它自动唤醒消耗资源相对昂贵，
+        # 所以在IOLoop同一线程中不会去主动唤醒它。
         self.add_handler(self._waker.fileno(),
                          lambda fd, events: self._waker.consume(),
                          self.READ)
    ```
 
-方法中都是进行一些全局数据的初始化工作。其中对epoll文件描述符设置自动关闭以及叫醒IOLoop机制可参考[tornado_platform_posix.md](./tornado_platform_posix.md)
+方法中都是进行一些全局数据的初始化工作。其中对epoll文件描述符设置fork时自动关闭以及叫醒IOLoop机制可参考[tornado_platform_posix.md](./tornado_platform_posix.md)
+
+IOLoop初始化完成之后就会调用IOLoop.start()方法去启动IOLoop，是IOLoop的核心。此方法在PollIOLoop中实现。
+
+* tornado.ioloop.PollIOLoop.start()
+
+   ```python
+        def start(self):
+        if self._running:
+            raise RuntimeError("IOLoop is already running")
+        self._setup_logging()
+        if self._stopped:
+            self._stopped = False
+            return
+        old_current = getattr(IOLoop._current, "instance", None)
+        IOLoop._current.instance = self
+        self._thread_ident = thread.get_ident()
+        self._running = True
+
+        old_wakeup_fd = None
+        if hasattr(signal, 'set_wakeup_fd') and os.name == 'posix':
+            try:
+                old_wakeup_fd = signal.set_wakeup_fd(self._waker.write_fileno())
+                if old_wakeup_fd != -1:
+                    signal.set_wakeup_fd(old_wakeup_fd)
+                    old_wakeup_fd = None
+            except ValueError:
+                old_wakeup_fd = None
+
+        try:
+            while True:
+                ncallbacks = len(self._callbacks)
+
+                due_timeouts = []
+                if self._timeouts:
+                    now = self.time()
+                    while self._timeouts:
+                        if self._timeouts[0].callback is None:
+                            heapq.heappop(self._timeouts)
+                            self._cancellations -= 1
+                        elif self._timeouts[0].deadline <= now:
+                            due_timeouts.append(heapq.heappop(self._timeouts))
+                        else:
+                            break
+                    if (self._cancellations > 512 and
+                            self._cancellations > (len(self._timeouts) >> 1)):
+                        self._cancellations = 0
+                        self._timeouts = [x for x in self._timeouts
+                                          if x.callback is not None]
+                        heapq.heapify(self._timeouts)
+
+                for i in range(ncallbacks):
+                    self._run_callback(self._callbacks.popleft())
+                for timeout in due_timeouts:
+                    if timeout.callback is not None:
+                        self._run_callback(timeout.callback)
+                due_timeouts = timeout = None
+
+                if self._callbacks:
+                    poll_timeout = 0.0
+                elif self._timeouts:
+                    poll_timeout = self._timeouts[0].deadline - self.time()
+                    poll_timeout = max(0, min(poll_timeout, _POLL_TIMEOUT))
+                else:
+                    poll_timeout = _POLL_TIMEOUT
+
+                if not self._running:
+                    break
+
+                if self._blocking_signal_threshold is not None:
+                    signal.setitimer(signal.ITIMER_REAL, 0, 0)
+
+                try:
+                    event_pairs = self._impl.poll(poll_timeout)
+                except Exception as e:
+                    if errno_from_exception(e) == errno.EINTR:
+                        continue
+                    else:
+                        raise
+
+                if self._blocking_signal_threshold is not None:
+                    signal.setitimer(signal.ITIMER_REAL,
+                                     self._blocking_signal_threshold, 0)
+
+                self._events.update(event_pairs)
+                while self._events:
+                    fd, events = self._events.popitem()
+                    try:
+                        fd_obj, handler_func = self._handlers[fd]
+                        handler_func(fd_obj, events)
+                    except (OSError, IOError) as e:
+                        if errno_from_exception(e) == errno.EPIPE:
+                            pass
+                        else:
+                            self.handle_callback_exception(self._handlers.get(fd))
+                    except Exception:
+                        self.handle_callback_exception(self._handlers.get(fd))
+                fd_obj = handler_func = None
+
+        finally:
+            self._stopped = False
+            if self._blocking_signal_threshold is not None:
+                signal.setitimer(signal.ITIMER_REAL, 0, 0)
+            IOLoop._current.instance = old_current
+            if old_wakeup_fd is not None:
+                signal.set_wakeup_fd(old_wakeup_fd)
+   ```

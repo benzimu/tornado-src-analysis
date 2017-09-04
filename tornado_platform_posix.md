@@ -72,4 +72,8 @@ tornado.platform.posix，Posix平台特定功能的实现。Posix平台指“可
 
 通过上面对close-on-exec标志的详解，再解读tornado.platform.posix就容易理解了。set_close_exec(fd)就是为了设置close-on-exec标志位为1；_set_nonblocking(fd)为了设置IO读写为非阻塞模式。
 
-类Waker可以解释为唤醒者。它继承至tornado.platform.interface.Waker，是一个类似socket（pipe管道）的对象，可以从”select.select()“唤醒另一个线程。tornado.ioloop.IOLoop将会吧Waker的文件描述符添加到”select“（或”epoll“或”kqueue“）中。当另一个线程想要唤醒IOLoop时，它会调用Waker.wake()。IOLoop一旦醒来，它将调用Waker.consume()，以进行必要的每次唤醒清理。当“IOLoop”关闭时，它也关闭了它的waker。
+类Waker可以解释为唤醒者。它继承至tornado.platform.interface.Waker，是一个类似socket（pipe管道）的对象，可以从”select.select()“或“epoll.poll()”等类似函数唤醒另一个线程。tornado.ioloop.IOLoop将会把Waker的读文件描述符添加到”select“（或”epoll“或”kqueue“）中。
+
+由于epoll.poll()（select.select()）函数是阻塞的，即当没有读写事件发生时会休眠，而当另一个线程想要唤醒IOLoop时，它会调用Waker.wake()，向pipe中写入数据，此时，已经被注册到epoll中的读管道pipe会被触发，从而epoll.poll()函数返回，即所谓唤醒了IOLoop。
+
+IOLoop一旦醒来，它将调用Waker.consume()回调函数，以进行必要的每次唤醒清理，即将为唤醒IOLoop而写入的数据读完。当“IOLoop”关闭时，它也关闭了它的waker。
