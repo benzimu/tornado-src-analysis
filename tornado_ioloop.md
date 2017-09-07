@@ -130,7 +130,7 @@ ioloop.IOLoop，继承至tornado.util.Configurable（主要用于子类的创建
         # 将唤醒者（waker）读文件描述符注册到epoll，
         # 当另一线程调用tornado.ioloop.PollIOLoop.add_callback()时，
         # 会调用self._waker.wake()唤醒IOLoop，从而让注册的回调函数运行。
-        # 由于唤醒正在轮训中的IOLoop比它自动唤醒消耗资源相对昂贵，
+        # 由于唤醒正在轮训中的IOLoop比它自动唤醒（超时）消耗资源相对昂贵，
         # 所以在IOLoop同一线程中不会去主动唤醒它。
         self.add_handler(self._waker.fileno(),
                          lambda fd, events: self._waker.consume(),
@@ -155,11 +155,18 @@ IOLoop初始化完成之后就会调用IOLoop.start()方法去启动IOLoop，是
         IOLoop._current.instance = self
         self._thread_ident = thread.get_ident()
         self._running = True
-
+        
+        # signal.set_wakeup_fd解决了事件循环中的条件竞争：select/poll/etc在开始进入
+        # 中断休眠之前一个信号可能会到达，因此信号可能在没有唤醒select时被处理消耗掉。
+        # 解决方法与C语言中的同步机制一样，将信号处理程序写入管道，然后通过select获取。
         old_wakeup_fd = None
         if hasattr(signal, 'set_wakeup_fd') and os.name == 'posix':
             try:
+                # 将唤醒者写管道文件描述符注册为wakeup_fd，当一个信号到来
+                # 时（如SIGINT，即Ctrl+C），会向其中写入"\0"，从而唤醒select或poll。
+                # 该函数返回上次设置的文件描述符，如果之前没设置过，则返回-1
                 old_wakeup_fd = signal.set_wakeup_fd(self._waker.write_fileno())
+                # 当返回值为-1则说明之前已经设置过wakeup_fd，然后重置
                 if old_wakeup_fd != -1:
                     signal.set_wakeup_fd(old_wakeup_fd)
                     old_wakeup_fd = None
@@ -168,19 +175,29 @@ IOLoop初始化完成之后就会调用IOLoop.start()方法去启动IOLoop，是
 
         try:
             while True:
+                # 为了避免IO事件饥饿，将新添加的回调延迟到事件循环的下一次迭代中。
+                
+                # epoll水平触发模式下，当有大量文件描述符就绪需要处理时，
+                # 可能会导致事件太多而没有执行到新添加的回调，这样就会造成IO事件饥饿。
                 ncallbacks = len(self._callbacks)
 
-                due_timeouts = []
+                # timeouts是tornado封装好的超时处理器
+                due_timeouts = [] # 保存本次迭代需要执行的超时任务
                 if self._timeouts:
                     now = self.time()
                     while self._timeouts:
+                        # 超时事件的回调函数已经被取消，即该超时事件已无效
                         if self._timeouts[0].callback is None:
                             heapq.heappop(self._timeouts)
                             self._cancellations -= 1
+                        # 当前时间是否已超过超时事件的最后期限，如已超过，则将其取出并
+                        # 保存到due_timeouts，然后执行
                         elif self._timeouts[0].deadline <= now:
                             due_timeouts.append(heapq.heappop(self._timeouts))
                         else:
                             break
+                    # 优化，当超时事件被取消的次数大于512次并且大于超时事件数量的一
+                    # 半时，清理所有被取消的超时事件
                     if (self._cancellations > 512 and
                             self._cancellations > (len(self._timeouts) >> 1)):
                         self._cancellations = 0
@@ -188,6 +205,7 @@ IOLoop初始化完成之后就会调用IOLoop.start()方法去启动IOLoop，是
                                           if x.callback is not None]
                         heapq.heapify(self._timeouts)
 
+                # 执行所有callback函数，及已经超时的超时事件
                 for i in range(ncallbacks):
                     self._run_callback(self._callbacks.popleft())
                 for timeout in due_timeouts:
@@ -195,8 +213,12 @@ IOLoop初始化完成之后就会调用IOLoop.start()方法去启动IOLoop，是
                         self._run_callback(timeout.callback)
                 due_timeouts = timeout = None
 
+                # 如果有回调函数，则epoll.poll(timeout)函数的timeout为0
                 if self._callbacks:
                     poll_timeout = 0.0
+                # 如果没有回调函数且有超时事件，则poll的timeout为：
+                # 首先获取最近的超时事件的最后期限与当前事件的差值，然后该值与poll的
+                # timeout的默认值两者取较小值，再与0比较取较大值
                 elif self._timeouts:
                     poll_timeout = self._timeouts[0].deadline - self.time()
                     poll_timeout = max(0, min(poll_timeout, _POLL_TIMEOUT))
@@ -206,10 +228,12 @@ IOLoop初始化完成之后就会调用IOLoop.start()方法去启动IOLoop，是
                 if not self._running:
                     break
 
+                # 取消信号定时器
                 if self._blocking_signal_threshold is not None:
                     signal.setitimer(signal.ITIMER_REAL, 0, 0)
 
                 try:
+                    # 整个方法的核心，即epoll.poll(timeout)
                     event_pairs = self._impl.poll(poll_timeout)
                 except Exception as e:
                     if errno_from_exception(e) == errno.EINTR:
@@ -221,11 +245,15 @@ IOLoop初始化完成之后就会调用IOLoop.start()方法去启动IOLoop，是
                     signal.setitimer(signal.ITIMER_REAL,
                                      self._blocking_signal_threshold, 0)
 
+                # 处理IO事件
                 self._events.update(event_pairs)
                 while self._events:
                     fd, events = self._events.popitem()
                     try:
+                        # 通过文件描述符获取在PollIOLoop.add_handler()
+                        # 方法中绑定到self._handlers中的socket对象及处理函数
                         fd_obj, handler_func = self._handlers[fd]
+                        # 调用处理器
                         handler_func(fd_obj, events)
                     except (OSError, IOError) as e:
                         if errno_from_exception(e) == errno.EPIPE:
@@ -244,3 +272,9 @@ IOLoop初始化完成之后就会调用IOLoop.start()方法去启动IOLoop，是
             if old_wakeup_fd is not None:
                 signal.set_wakeup_fd(old_wakeup_fd)
    ```
+
+对start()方法中的timeouts、callbacks的详解可以参考[tornado_timeouts.md](./tornado_timeouts.md)、[tornado_callbacks.md](./tornado_callbacks.md)，其中针对特定实例做了相关分析，能加深理解。
+
+
+
+
