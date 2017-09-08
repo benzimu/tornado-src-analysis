@@ -211,6 +211,7 @@ IOLoop初始化完成之后就会调用IOLoop.start()方法去启动IOLoop，是
                 for timeout in due_timeouts:
                     if timeout.callback is not None:
                         self._run_callback(timeout.callback)
+                # 释放资源
                 due_timeouts = timeout = None
 
                 # 如果有回调函数，则epoll.poll(timeout)函数的timeout为0
@@ -253,15 +254,17 @@ IOLoop初始化完成之后就会调用IOLoop.start()方法去启动IOLoop，是
                         # 通过文件描述符获取在PollIOLoop.add_handler()
                         # 方法中绑定到self._handlers中的socket对象及处理函数
                         fd_obj, handler_func = self._handlers[fd]
-                        # 调用处理器
+                        # 调用处理器函数
                         handler_func(fd_obj, events)
                     except (OSError, IOError) as e:
                         if errno_from_exception(e) == errno.EPIPE:
                             pass
                         else:
+                            # 如果有异常则调用异常处理函数
                             self.handle_callback_exception(self._handlers.get(fd))
                     except Exception:
                         self.handle_callback_exception(self._handlers.get(fd))
+                # 释放资源
                 fd_obj = handler_func = None
 
         finally:
@@ -273,7 +276,9 @@ IOLoop初始化完成之后就会调用IOLoop.start()方法去启动IOLoop，是
                 signal.set_wakeup_fd(old_wakeup_fd)
    ```
 
-对start()方法中的timeouts、callbacks的详解可以参考[tornado_timeouts.md](./tornado_timeouts.md)、[tornado_callbacks.md](./tornado_callbacks.md)，其中针对特定实例做了相关分析，能加深理解。
+对start()方法中的timeouts的详解可以参考[tornado_PeriodicCallback.md](./tornado_PeriodicCallback.md)，其中针对特定实例做了相关分析，能加深理解。callbacks与timeouts的处理是相似的。
+
+tornado IOLoop中对epoll.register()、epoll.modify()、epoll.unregister()分别做了封装，对应PollIOLoop.add_handler()、PollIOLoop.update_handler()、PollIOLoop.remove_handler()，分别表示注册文件描述符到epoll中、更新epoll中监听文件描述符的事件类型、删除epoll中监听的文件描述符。
 
 
 

@@ -1,4 +1,4 @@
-## tornado platform posix
+## tornado对posix的实现解析
 
 tornado.platform.posix，Posix平台特定功能的实现。Posix平台指“可移植操作系统接口”（Portable Operation System Interface），最后的x代表类Unix系统。该文件主要是对Linux系统相关API的实现，Windows NT系列实现为tornado.platform.windows、tornado.platform.common。
 
