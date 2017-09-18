@@ -56,7 +56,7 @@ tornado.util.Configurable，一个配置类，是工厂模式的实现，通过�
         # 通常是其自身（如tornado.httpclient.AsyncHTTPClient.configurable_base()）
         base = cls.configurable_base()
         init_kwargs = {}
-        # 判断实例cls是否是基类base
+        # 判断cls是否是基类base
         if cls is base:
             # 获取当前配置的实现类，因为之前配置过实现类，即第二行，
             # 所以得到impl为tornado.curl_httpclient.CurlAsyncHTTPClient
@@ -67,7 +67,7 @@ tornado.util.Configurable，一个配置类，是工厂模式的实现，通过�
                 # base.__impl_kwargs={"max_clients": 10000}
                 init_kwargs.update(base.__impl_kwargs)
         else:
-            # 实现类即为实例cls
+            # 实现类即为cls
             impl = cls
         # 更新初始化参数字典
         init_kwargs.update(kwargs)
