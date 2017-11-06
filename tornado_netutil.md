@@ -87,7 +87,8 @@
             io_loop = IOLoop.current()
 
         def accept_handler(fd, events):
-            # 在我们处理回调时可能会有更多的连接; 为了防止其他任务的饥饿，我们必须限制
+            # 在我们处理回调时可能会有更多的连接; 为了防止其他任务的饥饿（如果该值过大，
+            # 可能会导致程序执行当前队列时间过长，而后续任务无法被执行），我们必须限制
             # 我们一次接受的连接数。理想情况下，我们将接受输入此方法时等待的连接数，
             # 但是此信息不可用（而且在运行任何回调之前重新排列此方法以调用accept()
             # 多次可能会对多进程配置中的负载平衡产生不利影响）。 相反，我们使用（默认）
@@ -106,8 +107,8 @@
                 # 调用callback
                 callback(connection, address)
         # 将服务器端sock以读事件注册到epoll，即epoll一直监听着服务器端socket，只要有
-        # 客户端连接到服务器端socket，epoll就会触发，IOLoop就会调用accept_handler方
-        # 法，最终调用callback(connection, address)
+        # 客户端连接到服务器端socket，epoll就会触发，epoll.poll()方法就会返回，IOLoop
+        # 就会调用accept_handler方法，最终调用callback(connection, address)
         io_loop.add_handler(sock, accept_handler, IOLoop.READ)
    ```
 

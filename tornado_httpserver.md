@@ -90,7 +90,7 @@ listen()方法中就两行代码，分别调用了两个方法：tornado.netutil
 
    ```python
     def add_sockets(self, sockets):
-        # 获取当前IOLoop对象
+        # 获取当前IOLoop对象，此时还没有start
         if self.io_loop is None:
             self.io_loop = IOLoop.current()
 
@@ -127,7 +127,7 @@ add_sockets()方法最重要的是调用add_accept_handler()函数，详解参�
                 else:
                     raise
         try:
-            # 如果是ssl连接，则使用SSLIOStream处理connection
+            # 如果是ssl连接，则使用SSLIOStream处理connection，否则使用IOStream
             if self.ssl_options is not None:
                 stream = SSLIOStream(connection, io_loop=self.io_loop,
                                      max_buffer_size=self.max_buffer_size,
@@ -148,15 +148,40 @@ add_sockets()方法最重要的是调用add_accept_handler()函数，详解参�
 
 以非ssl请求为例，tornado会实例化tornado.iostream.IOStream对象，用它去处理流，该对象主要封装了对请求数据读写的一些操作。之后会调用self.handle_stream(stream, address)，而该方法在tornado.HTTPServer中被实现。
 
-* tornado.HTTPServer.handle_stream()
+* tornado.httpserver.HTTPServer.handle_stream()
 
    ```python
     def handle_stream(self, stream, address):
+        # 将相关参数保存上下文中，以便之后获取
         context = _HTTPRequestContext(stream, address,
                                       self.protocol,
                                       self.trusted_downstream)
+        # 初始化HTTP1ServerConnection实例
         conn = HTTP1ServerConnection(
             stream, self.conn_params, context)
+        # 保存连接conn到self._connections
         self._connections.add(conn)
+        # 开始在该conn连接上处理请求
         conn.start_serving(self)
    ```
+
+该方法主要是完成了对HTTP1ServerConnection的初始化，以及通过调用start_serving开始处理请求。http1connection.HTTP1ServerConnection.start_serving()详解参考：[tornado_http1connection.md](./tornado_http1connection.md)
+
+## 相关方法解析
+
+* <div id="start_request"></div>tornado.httpserver.HTTPServer.start_request()
+
+   ```python
+    def start_request(self, server_conn, request_conn):
+        if isinstance(self.request_callback, httputil.HTTPServerConnectionDelegate):
+            delegate = self.request_callback.start_request(server_conn, request_conn)
+        else:
+            delegate = _CallableAdapter(self.request_callback, request_conn)
+
+        if self.xheaders:
+            delegate = _ProxyAdapter(delegate, request_conn)
+
+        return delegate
+   ```
+
+方法实现了父类tornado.httputil.HTTPServerConnectionDelegate中的start_request()方法，当新的请求开始时，这个方法会被服务器调用。通过上面tornado.httpserver.HTTPServer.initialize()详解可知，self.request_callback为tornado.web.Application实例，而tornado.web.Application刚好继承至httputil.HTTPServerConnectionDelegate，则会调用tornado.web.Application的start_request()方法。详解可参考：[tornado_application.md](./tornado_application.md)。最终返回的是继承至httputil.HTTPMessageDelegate的_RoutingDelegate对象，即delegate为httputil.HTTPMessageDelegate实例。
