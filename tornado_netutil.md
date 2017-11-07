@@ -1,6 +1,6 @@
 ## tornado netutil
 
-* tornado.netutil.bind_sockets()
+* <div id="bind_sockets"></div>tornado.netutil.bind_sockets()
 
 该方法创建绑定到给定端口和地址的监听套接字socket。返回套接字对象的列表，比如给定的address参数映射到多个IP地址，则返回多个socket，最常见的是混合使用IPv4与IPv6，则会创建对应的两个socket。
 
@@ -76,7 +76,7 @@
 
 如上基本为socket的常规操作，主要操作放在了IPv4与IPv6的兼容方面。最终返回分别基于IPv4与IPv6两个socket对象组成的list。
 
-* tornado.netutil.add_accept_handler()
+* <div id="add_accept_handler"></div>tornado.netutil.add_accept_handler()
 
 正是该方法将web服务器与IOLoop连接了起来，主要用于添加一个IOLoop事件处理器来接受服务器socket上的新连接（来自客户端的连接）。当一个客户端连接被accept，callback函数将会被调用。
 

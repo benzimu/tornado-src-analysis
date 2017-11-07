@@ -84,7 +84,7 @@ tornado.httputil.HTTPServerConnectionDelegate
         self.add_sockets(sockets)
    ```
 
-listen()方法中就两行代码，分别调用了两个方法：tornado.netutil.bind_sockets()、add_sockets。tornado.netutil.bind_sockets()详解参考：[tornado_netutil.md](./tornado_netutil.md)
+listen()方法中就两行代码，分别调用了两个方法：tornado.netutil.bind_sockets()、add_sockets。tornado.netutil.bind_sockets()详解参考：[tornado_netutil.md](./tornado_netutil.md/#bind_sockets)
 
 * tornado.tcpserver.TCPServer.add_sockets()
 
@@ -102,7 +102,7 @@ listen()方法中就两行代码，分别调用了两个方法：tornado.netutil
                                io_loop=self.io_loop)
    ```
 
-add_sockets()方法最重要的是调用add_accept_handler()函数，详解参考：[tornado_netutil.md](./tornado_netutil.md)，从add_accept_handler()函数的详解可知，客户端连接到服务器之后的数据传输，最终调用self._handle_connection()方法完成。
+add_sockets()方法最重要的是调用add_accept_handler()函数，详解参考：[tornado_netutil.md](./tornado_netutil.md/#add_accept_handler)，从add_accept_handler()函数的详解可知，客户端连接到服务器之后的数据传输，最终调用self._handle_connection()方法完成。
 
 * tornado.tcpserver.TCPServer._handle_connection()
 
@@ -165,7 +165,7 @@ add_sockets()方法最重要的是调用add_accept_handler()函数，详解参�
         conn.start_serving(self)
    ```
 
-该方法主要是完成了对HTTP1ServerConnection的初始化，以及通过调用start_serving开始处理请求。http1connection.HTTP1ServerConnection.start_serving()详解参考：[tornado_http1connection.md](./tornado_http1connection.md)
+该方法主要是完成了对HTTP1ServerConnection的初始化，以及通过调用start_serving开始处理请求。http1connection.HTTP1ServerConnection.start_serving()详解参考：[tornado_http1connection.md](./tornado_http1connection.md/#start_serving)
 
 ## 相关方法解析
 
