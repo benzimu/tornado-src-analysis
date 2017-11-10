@@ -68,13 +68,16 @@ tornado http1connection主要是对http协议进行了封装。
     def _read_message(self, delegate):
         need_delegate_close = False
         try:
+            # 读取请求header数据，返回Future对象
             header_future = self.stream.read_until_regex(
                 b"\r?\n\r?\n",
                 max_bytes=self.params.max_header_size)
+            # 判断header_timeout是否为None，如果为None，则直接读取header_future数据
             if self.params.header_timeout is None:
                 header_data = yield header_future
             else:
                 try:
+                    # header超时实现
                     header_data = yield gen.with_timeout(
                         self.stream.io_loop.time() + self.params.header_timeout,
                         header_future,
@@ -83,15 +86,21 @@ tornado http1connection主要是对http协议进行了封装。
                 except gen.TimeoutError:
                     self.close()
                     raise gen.Return(False)
+            # 解析header信息，HTTP协议分为request-line、request-header、
+            # request-body三个部分的。在查看各浏览器、服务器配置的时候往往将
+            # request-line、request-header归为一类了
             start_line, headers = self._parse_headers(header_data)
+            # 判断是否作为客户端
             if self.is_client:
+                # 如果作为客户端，则解析服务端响应起始行
                 start_line = httputil.parse_response_start_line(start_line)
                 self._response_start_line = start_line
             else:
+                # 如果作为服务端，则解析客户端请求起始行
                 start_line = httputil.parse_request_start_line(start_line)
                 self._request_start_line = start_line
                 self._request_headers = headers
-
+            # 判断是否能保持长链接，即Connection: keep_alive
             self._disconnect_on_finish = not self._can_keep_alive(
                 start_line, headers)
             need_delegate_close = True
@@ -176,4 +185,4 @@ tornado http1connection主要是对http协议进行了封装。
         raise gen.Return(True)
    ```
 
-重要方法，首先会调用stream的read_until_regex方法读取客户端传过来的头数据（http协议的header），详解参考：[tornado_iostream.md](./tornado_iostream.md/#read_until_regex)
+重要方法，首先会调用stream的read_until_regex方法开始读取客户端请求传入的头数据（http协议的header），返回一个Future对象，即header_future，详解参考：[tornado_iostream.md](./tornado_iostream.md/#read_until_regex)；接着会判断是否有设置header_timeout，而在该方法中，默认是3600秒，则开始请求头超时机制设计，详解参考：[tornado_gen.md](./tornado_gen.md/#with_timeout)；

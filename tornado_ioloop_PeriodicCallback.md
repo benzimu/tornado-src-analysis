@@ -110,7 +110,7 @@ tornado.ioloop.PeriodicCallback是tornado实现的定时器。
 
 在PeriodicCallback._schedule_next()的最后一行执行的添加超时事件就会被IOLoop下次循环中。
 
-* tornado.ioloop.IOLoop.add_timeout()
+* <div id="add_timeout"></div>tornado.ioloop.IOLoop.add_timeout()
 
    ```python
     def add_timeout(self, deadline, callback, *args, **kwargs):
@@ -144,4 +144,4 @@ tornado规定继承至IOLoop的子类必须实现add_timeout()或者call_at()方
         return timeout
    ```
 
-执行该函数之后timeouts就会被添加到self._timeouts中，当tornado IOLoop的epoll.poll()函数再次醒来时，则会重新迭代，然后调用self._timeouts，进行相关判断处理。
+执行该函数之后timeouts就会被添加到self._timeouts中，当tornado IOLoop的epoll.poll()函数再次醒来时，则会重新迭代，然后调用self._timeouts，进行相关判断处理。详解参考：[tornado_ioloop.md](./tornado_ioloop.md/#start)

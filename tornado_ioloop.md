@@ -141,7 +141,7 @@ ioloop.IOLoop，继承至tornado.util.Configurable（主要用于子类的创建
 
 IOLoop初始化完成之后就会调用IOLoop.start()方法去启动IOLoop，是IOLoop的核心。此方法在PollIOLoop中实现。
 
-* tornado.ioloop.PollIOLoop.start()
+* <div id="start"></div>tornado.ioloop.PollIOLoop.start()
 
    ```python
         def start(self):
@@ -276,7 +276,7 @@ IOLoop初始化完成之后就会调用IOLoop.start()方法去启动IOLoop，是
                 signal.set_wakeup_fd(old_wakeup_fd)
    ```
 
-对start()方法中的timeouts的详解可以参考[tornado_PeriodicCallback.md](./tornado_PeriodicCallback.md)，其中针对特定实例做了相关分析，能加深理解。callbacks与timeouts的处理是相似的。
+对start()方法中的timeouts的详解可以参考[tornado_ioloop_PeriodicCallback.md](./tornado_ioloop_PeriodicCallback.md)，其中针对特定实例做了相关分析，能加深理解。callbacks与timeouts的处理是相似的。
 
 tornado IOLoop中对epoll.register()、epoll.modify()、epoll.unregister()分别做了封装，对应PollIOLoop.add_handler()、PollIOLoop.update_handler()、PollIOLoop.remove_handler()，分别表示注册文件描述符到epoll中、更新epoll中监听文件描述符的事件类型、删除epoll中监听的文件描述符。
 
