@@ -185,3 +185,5 @@ add_sockets()方法最重要的是调用add_accept_handler()函数，详解参�
    ```
 
 方法实现了父类tornado.httputil.HTTPServerConnectionDelegate中的start_request()方法，当新的请求开始时，这个方法会被服务器调用。通过上面tornado.httpserver.HTTPServer.initialize()详解可知，self.request_callback为tornado.web.Application实例，而tornado.web.Application刚好继承至httputil.HTTPServerConnectionDelegate，则会调用tornado.web.Application的start_request()方法。详解可参考：[tornado_application.md](./tornado_application.md)。最终返回的是继承至httputil.HTTPMessageDelegate的_RoutingDelegate对象，即delegate为httputil.HTTPMessageDelegate实例。
+
+
