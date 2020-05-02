@@ -52,7 +52,7 @@ ioloop.IOLoop，继承至tornado.util.Configurable（主要用于子类的创建
         return current
    ```
 
-该函数只有四行，它先判断当前线程中是否有IOLoop实例正在运行或者被IOLoop.make_current()标记过，如果结果为真就直接返回当前IOLoop，否则调用IOLoop.instance()去创建IOLoop实例。
+该函数只有四行，它先判断当前进程中是否有IOLoop实例正在运行或者被IOLoop.make_current()标记过，如果结果为真就直接返回当前IOLoop，否则调用IOLoop.instance()去创建IOLoop实例。
 
 * tornado.ioloop.IOLoop.instance()
 
